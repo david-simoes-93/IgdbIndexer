@@ -25,7 +25,9 @@ def build_games_list(json_name):
 
 
 def process_csv(csv_name):
-    """loads .csv extracted from IGDB.com, queries IGDB.com for GameInfos, saves .json with same name"""
+    """loads .csv extracted from IGDB.com,
+    queries IGDB.com for GameInfos,
+    saves .json with same name"""
     games_json = []
     access_token = get_auth_token()
 
@@ -67,7 +69,10 @@ def call_api(game_id, access_token):
     game_id = re.sub(r"\D", "", game_id)
     # query game info
     game_api_url = "https://api.igdb.com/v4/games"
-    header = {"Client-ID": os.environ["CLIENT_ID"], "Authorization": "Bearer " + access_token}
+    header = {
+        "Client-ID": os.environ["CLIENT_ID"],
+        "Authorization": "Bearer " + access_token,
+    }
     response_decoded_json = requests.post(
         game_api_url,
         data="fields *,release_dates.*,cover.*; where id = " + str(game_id) + ";",
@@ -122,8 +127,8 @@ def call_api(game_id, access_token):
     return game_json
 
 
-# adds/removes games with args, or shows GUI otherwise
 def main():
+    """adds/removes games with args, or shows GUI otherwise"""
     parser = argparse.ArgumentParser(description="Process some integers.")
     parser.add_argument(
         "--add",

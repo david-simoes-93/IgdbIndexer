@@ -2,8 +2,9 @@
 
 import math
 import os
+from typing import Optional
 
-from PIL import Image, ImageTk  # pylint: disable=E0401
+from PIL import Image, ImageTk
 
 
 class GameInfo:
@@ -14,7 +15,7 @@ class GameInfo:
         self.name: str = name
         self.order_name: str = order_name
         self.year: str = year
-        self.img: ImageTk.PhotoImage | None = None
+        self.img: Optional[ImageTk.PhotoImage] = None
 
     def get_img(self, width, _height):
         """generates TK image and returns it"""

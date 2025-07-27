@@ -73,17 +73,17 @@ class GamesListPage(tk.Frame):
 
         return frame
 
-    def _on_frame_configure(self, _):
+    def _on_frame_configure(self, _event):
         """Reset the scroll region to encompass the inner frame"""
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
-    def _bound_to_mousewheel(self, event):
+    def _bound_to_mousewheel(self, _event):
         """when frame is focused, bind mousewheel"""
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel_windows)
         self.canvas.bind_all("<Button-4>", self._on_mousewheel_linux_up)
         self.canvas.bind_all("<Button-5>", self._on_mousewheel_linux_down)
 
-    def _unbound_to_mousewheel(self, event):
+    def _unbound_to_mousewheel(self, _event):
         """when frame is unfocused, unbind mousewheel"""
         self.canvas.unbind_all("<MouseWheel>")
         self.canvas.unbind_all("<Button-4>")
@@ -92,17 +92,18 @@ class GamesListPage(tk.Frame):
     def _on_mousewheel_windows(self, event):
         self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
-    def _on_mousewheel_linux_down(self, event):
+    def _on_mousewheel_linux_down(self, _event):
         self.canvas.yview_scroll(1, "units")
 
-    def _on_mousewheel_linux_up(self, event):
+    def _on_mousewheel_linux_up(self, _event):
         self.canvas.yview_scroll(-1, "units")
 
 
-def make_gui(list_of_jsons, list_of_games_lists):
+def make_gui(list_of_jsons, list_of_games_lists) -> tk.Tk:
+    """Creates the main GUI"""
     window = tk.Tk()
-    w, h = window.winfo_screenwidth(), window.winfo_screenheight()
-    window.geometry("%dx%d+0+0" % (w, h))
+    width, height = window.winfo_screenwidth(), window.winfo_screenheight()
+    window.geometry(f"{width}x{height}+0+0")
     window.title("Games Indexer")
     window.iconphoto(False, tk.PhotoImage(file="igdb_indexer/igdb.png"))
     window.update()
@@ -119,4 +120,4 @@ def make_gui(list_of_jsons, list_of_games_lists):
         tab.update()
         GamesListPage(tab, games_list, cols, game_width_px)
 
-    window.mainloop()
+    return window
