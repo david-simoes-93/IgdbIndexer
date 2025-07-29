@@ -7,34 +7,42 @@ from typing import Optional
 from PIL import Image, ImageTk
 
 
-class GameInfo:
+class GameDetails:
     """A small struct to keep track of each game's data"""
 
-    def __init__(self, game_id: str, name: str, order_name: str, year: str):
+    def __init__(self, game_id: str, name: str, order_name: str, year: int):
         self.game_id: str = game_id
         self.name: str = name
         self.order_name: str = order_name
-        self.year: str = year
+        self.year: int = year
         self.img: Optional[ImageTk.PhotoImage] = None
+        self.img_hidden: Optional[ImageTk.PhotoImage] = None
 
-    def get_img(self, width, _height):
-        """generates TK image and returns it"""
+    def generate_cover_image(self, width: int, _height: int) -> None:
+        """generates TK image"""
         if self.img is None:
-            img_name = os.path.join("user_data", self.game_id + ".jpg")
+            img_name: str = os.path.join("user_data", self.game_id + ".jpg")
             if os.path.exists(img_name):
                 img = Image.open(img_name)
             else:
                 img = Image.open(os.path.join("igdb_indexer", "default.jpg"))
-            # ratio_x, ratio_y = , (h - 55) / img.height
-            ratio = width / img.width  # ratio_x if ratio_x < ratio_y else ratio_y
+            ratio: float = width / img.width
             self.img = ImageTk.PhotoImage(
                 img.resize(
                     (math.floor(img.width * ratio), math.floor(img.height * ratio)),
                     Image.Resampling.LANCZOS,
                 )
             )
-        return self.img
+        if self.img_hidden is None:
+            img = Image.open(os.path.join("igdb_indexer", "default.jpg"))
+            ratio: float = width / img.width
+            self.img_hidden = ImageTk.PhotoImage(
+                img.resize(
+                    (math.floor(img.width * ratio), math.floor(img.height * ratio)),
+                    Image.Resampling.LANCZOS,
+                )
+            )
 
-    def __lt__(self, other):
-        """order GameInfo by order_name"""
+    def __lt__(self, other) -> bool:
+        """order GameDetails by order_name"""
         return self.order_name < other.order_name
