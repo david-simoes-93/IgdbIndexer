@@ -21,3 +21,4 @@ jobs:
           use-isort: true
           extra-pycodestyle-options: "--max-line-length=120"
           extra-black-options: "--line-length=120"
+          extra-isort-options: "--profile=black"
