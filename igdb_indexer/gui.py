@@ -1,17 +1,17 @@
 """The GUI"""
 
-import json
-import os
 import tkinter as tk
 from tkinter import ttk
 
 from igdb_indexer.game_details import GameDetails
-from igdb_indexer.networking import get_auth_token, query_igdb
+from igdb_indexer.igdb_interface import get_auth_token, query_igdb
+from igdb_indexer.json_interface import load_json, load_json_as_games_list, save_json
 
 
 class GameFrame(tk.Frame):
+    """a single game frame, with title, date, id, and cover image"""
+
     def __init__(self, root: ttk.Frame, game_info: GameDetails, game_width_px: int):
-        """makes a single game frame"""
         tk.Frame.__init__(self, master=root, borderwidth=1, background="white")
         self.game_info = game_info
         self.label_title = tk.Label(
@@ -109,7 +109,7 @@ class GamesListPage(tk.Frame):
 
 
 class GameSearchBar(tk.Frame):
-    """A TK Frame that will filter/add/remove games on the given page"""
+    """A frame with a search bar that will filter/add/remove/update games on the given page"""
 
     def __init__(self, root: ttk.Frame, games_list_page: GamesListPage):
         tk.Frame.__init__(self, root)
@@ -130,14 +130,6 @@ class GameSearchBar(tk.Frame):
         remove_button.grid(column=3, row=0)
         update_button.grid(column=4, row=0)
 
-    def filter_button_cb(self):
-        search_filter = self.text_box.get().lower()
-        for game_frame in self.games_list_page.game_widgets:
-            if search_filter not in game_frame.game_info.name and search_filter not in game_frame.game_info.order_name:
-                game_frame.label_img.configure(image=game_frame.game_info.img_hidden)
-            else:
-                game_frame.label_img.configure(image=game_frame.game_info.img)
-
     def update_games_list_tab(self):
         """re-creates the tab from scratch"""
         for game_frame in self.games_list_page.game_widgets:
@@ -146,6 +138,14 @@ class GameSearchBar(tk.Frame):
         json_name: str = self.games_list_page.tab_name + ".json"
         self.games_list_page.make_game_frames(load_json_as_games_list(json_name))
 
+    def filter_button_cb(self):
+        search_filter = self.text_box.get().lower()
+        for game_frame in self.games_list_page.game_widgets:
+            if search_filter not in game_frame.game_info.name and search_filter not in game_frame.game_info.order_name:
+                game_frame.label_img.configure(image=game_frame.game_info.img_hidden)
+            else:
+                game_frame.label_img.configure(image=game_frame.game_info.img)
+
     def add_button_cb(self):
         game_id: str = self.text_box.get()
         if not game_id.isdigit():
@@ -153,12 +153,7 @@ class GameSearchBar(tk.Frame):
             return
 
         # load JSON file
-        json_path = os.path.join("user_data", self.games_list_page.tab_name + ".json")
-        if os.path.exists(json_path):
-            with open(json_path, newline="") as json_file:
-                games_json = json.load(json_file)
-        else:
-            games_json = {"games": []}
+        games_json = load_json(self.games_list_page.tab_name + ".json")
 
         # fetch game from IGDB
         access_token = get_auth_token()
@@ -170,8 +165,7 @@ class GameSearchBar(tk.Frame):
         games_json["games"].append(game_json)
 
         # update JSON file
-        with open(json_path, "w") as outfile:
-            json.dump(games_json, outfile, indent=4)
+        save_json(self.games_list_page.tab_name + ".json", games_json)
         print(f"Game {game_id} added")
         self.text_box.delete(0, "end")
 
@@ -191,9 +185,7 @@ class GameSearchBar(tk.Frame):
             games_json["games"].append(game_json)
 
         # update JSON file
-        json_path = os.path.join("user_data", self.games_list_page.tab_name + ".json")
-        with open(json_path, "w") as outfile:
-            json.dump(games_json, outfile, indent=4)
+        save_json(self.games_list_page.tab_name + ".json", games_json)
 
         # update tab
         self.update_games_list_tab()
@@ -205,9 +197,7 @@ class GameSearchBar(tk.Frame):
             return
 
         # load JSON file
-        json_path = os.path.join("user_data", self.games_list_page.tab_name + ".json")
-        with open(json_path, newline="") as json_file:
-            games_json = json.load(json_file)
+        games_json = load_json(self.games_list_page.tab_name + ".json")
 
         # remove game from list
         prev_size: int = len(games_json["games"])
@@ -217,24 +207,12 @@ class GameSearchBar(tk.Frame):
             return
 
         # update JSON file
-        with open(json_path, "w") as outfile:
-            json.dump(games_json, outfile, indent=4)
+        save_json(self.games_list_page.tab_name + ".json", games_json)
         print(f"Game {game_id} removed")
         self.text_box.delete(0, "end")
 
         # update tab
         self.update_games_list_tab()
-
-
-def load_json_as_games_list(json_name: str) -> list[GameDetails]:
-    """loads .json, returns sorted list of GameDetails"""
-    games_list: list[GameDetails] = []
-    with open(os.path.join("user_data", json_name), newline="") as json_file:
-        games_json = json.load(json_file)
-        for game in games_json["games"]:
-            games_list.append(GameDetails(game["id"], game["name"], game["order_name"], game["year"]))
-    games_list.sort()
-    return games_list
 
 
 def make_gui(list_of_jsons: list[str]) -> tk.Tk:
@@ -252,9 +230,10 @@ def make_gui(list_of_jsons: list[str]) -> tk.Tk:
     tab_control = ttk.Notebook(window)
     tab_control.pack(expand=1, fill="both")
 
+    print("Loading tabs:")
     for file in list_of_jsons:
         tab_name = file[:-5]  # remove ".json" suffix
-        print(tab_name)
+        print(f"\t{tab_name}")
 
         tab = ttk.Frame(tab_control)
         tab_control.add(tab, text=tab_name)

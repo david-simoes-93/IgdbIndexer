@@ -1,4 +1,4 @@
-"""The GUI"""
+"""Interface with IGDB"""
 
 import os
 import re
