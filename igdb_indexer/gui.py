@@ -2,6 +2,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+from typing import List
 
 from igdb_indexer.game_details import GameDetails
 from igdb_indexer.igdb_interface import get_auth_token, query_igdb
@@ -11,9 +12,9 @@ from igdb_indexer.json_interface import load_json, load_json_as_games_list, save
 class GameFrame(tk.Frame):
     """a single game frame, with title, date, id, and cover image"""
 
-    def __init__(self, root: ttk.Frame, game_info: GameDetails, game_width_px: int):
+    def __init__(self, root: tk.Frame, game_info: GameDetails, game_width_px: int):
         tk.Frame.__init__(self, master=root, borderwidth=1, background="white")
-        self.game_info = game_info
+        self.game_info: GameDetails = game_info
         self.label_title = tk.Label(
             master=self,
             text=game_info.name,
@@ -27,10 +28,9 @@ class GameFrame(tk.Frame):
             background="white",
             wraplength=game_width_px,
         )
-        game_info.generate_cover_image(game_width_px, int(game_width_px * 1.9))
         self.label_img = tk.Label(
             master=self,
-            image=game_info.img,
+            image=game_info.generate_cover_image(game_width_px, int(game_width_px * 1.9)),
         )
         self.label_pad = tk.Label(master=self, background="white", font="Helvetica 5")
         self.label_title.pack()
@@ -42,11 +42,11 @@ class GameFrame(tk.Frame):
 class GamesListPage(tk.Frame):
     """A TK Frame that will group and show the actual game frames in a grid-like fashion"""
 
-    def __init__(self, root: ttk.Frame, tab_name: str, games_list: list[GameDetails], cols: int, game_width_px: int):
+    def __init__(self, root: ttk.Frame, tab_name: str, games_list: List[GameDetails], cols: int, game_width_px: int):
         tk.Frame.__init__(self, root)
         self.root: ttk.Frame = root
         self.cols: int = cols
-        self.game_widgets: list[GameFrame] = []
+        self.game_widgets: List[GameFrame] = []
         self.tab_name: str = tab_name
         self.game_width_px: int = game_width_px
 
@@ -72,7 +72,7 @@ class GamesListPage(tk.Frame):
         # keep game frames in memory
         self.make_game_frames(games_list)
 
-    def make_game_frames(self, games_list: list[GameDetails]) -> None:
+    def make_game_frames(self, games_list: List[GameDetails]) -> None:
         """makes a game frame for each game in games_list, places it in proper grid position"""
         self.game_widgets = []
         for index in range(len(games_list)):
@@ -215,7 +215,7 @@ class GameSearchBar(tk.Frame):
         self.update_games_list_tab()
 
 
-def make_gui(list_of_jsons: list[str]) -> tk.Tk:
+def make_gui(list_of_jsons: List[str]) -> tk.Tk:
     """Creates the main GUI"""
     window = tk.Tk()
     width, height = window.winfo_screenwidth(), window.winfo_screenheight()
@@ -224,8 +224,8 @@ def make_gui(list_of_jsons: list[str]) -> tk.Tk:
     window.iconphoto(False, tk.PhotoImage(file="igdb_indexer/igdb.png"))
     window.update()
 
-    cols = 5
-    game_width_px = (window.winfo_width() - 40) / 5
+    cols: int = 5
+    game_width_px: int = round((window.winfo_width() - 40) / 5)
 
     tab_control = ttk.Notebook(window)
     tab_control.pack(expand=1, fill="both")

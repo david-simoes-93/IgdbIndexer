@@ -18,8 +18,8 @@ class GameDetails:
         self.img: Optional[ImageTk.PhotoImage] = None
         self.img_hidden: Optional[ImageTk.PhotoImage] = None
 
-    def generate_cover_image(self, width: int, _height: int) -> None:
-        """generates TK image"""
+    def generate_cover_image(self, width: int, _height: int) -> ImageTk.PhotoImage:
+        """generates TK image if it wasn't generated yet"""
         if self.img is None:
             img_name: str = os.path.join("user_data", self.game_id + ".jpg")
             if os.path.exists(img_name):
@@ -35,13 +35,14 @@ class GameDetails:
             )
         if self.img_hidden is None:
             img = Image.open(os.path.join("igdb_indexer", "default.jpg"))
-            ratio: float = width / img.width
+            ratio_hidden: float = width / img.width
             self.img_hidden = ImageTk.PhotoImage(
                 img.resize(
-                    (math.floor(img.width * ratio), math.floor(img.height * ratio)),
+                    (math.floor(img.width * ratio_hidden), math.floor(img.height * ratio_hidden)),
                     Image.Resampling.LANCZOS,
                 )
             )
+        return self.img
 
     def __lt__(self, other) -> bool:
         """order GameDetails by order_name"""

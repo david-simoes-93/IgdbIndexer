@@ -2,7 +2,7 @@
 
 import os
 import re
-from typing import Any
+from typing import Dict, Optional
 
 import requests
 
@@ -24,7 +24,7 @@ def get_auth_token() -> str:
     return access_token
 
 
-def query_igdb(game_id: str, access_token: str) -> dict[str, Any]:
+def query_igdb(game_id: str, access_token: str) -> Optional[Dict[str, str]]:
     """queries IGDB.com, returns json struct with game info"""
     game_id = re.sub(r"\D", "", game_id)  # clean IDs from windows
     # query game info
