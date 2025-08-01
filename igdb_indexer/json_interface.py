@@ -25,11 +25,44 @@ def save_json(json_file_name: str, games_json: Dict[str, List[GameDetails]]) -> 
         json.dump(games_json, outfile, indent=4)
 
 
+def remove_json(json_file_name: str) -> None:
+    """remove JSON file and all game covers it uniquely references"""
+    other_jsons = get_all_json()
+    other_jsons.remove(json_file_name)
+
+    # find all games referenced by other lists
+    other_games = set()
+    for other_json in other_jsons:
+        for game in load_json(other_json)["games"]:
+            other_games.add(game["game_id"])
+
+    # remove all game_covers of games in the list-to-be-deleted that aren't referenced elsewhere
+    for game in load_json(json_file_name)["games"]:
+        if game["game_id"] in other_games:
+            continue
+        os.remove(os.path.join("user_data", game["game_id"] + ".jpg"))
+
+    # remove list
+    json_path = os.path.join("user_data", json_file_name)
+    os.remove(json_path)
+
+
+def get_all_json() -> List[str]:
+    """grab all JSON files"""
+    list_of_jsons = []
+    for file in os.listdir("user_data"):
+        if not file.endswith(".json"):
+            continue
+        list_of_jsons.append(file)
+    list_of_jsons.sort()
+    return list_of_jsons
+
+
 def load_json_as_games_list(json_file_name: str) -> List[GameDetails]:
     """loads JSON file, returns sorted List of GameDetails"""
     games_json = load_json(json_file_name)
     games_list: List[GameDetails] = []
     for game in games_json["games"]:
-        games_list.append(GameDetails(game["id"], game["name"], game["order_name"], int(game["year"])))
+        games_list.append(GameDetails(**game))
     games_list.sort()
     return games_list

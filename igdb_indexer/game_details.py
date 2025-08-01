@@ -5,18 +5,21 @@ import os
 from typing import Optional
 
 from PIL import Image, ImageTk
+from pydantic import BaseModel
 
 
-class GameDetails:
+class GameDetails(BaseModel):
     """A small struct to keep track of each game's data"""
 
-    def __init__(self, game_id: str, name: str, order_name: str, year: int):
-        self.game_id: str = game_id
-        self.name: str = name
-        self.order_name: str = order_name
-        self.year: int = year
-        self.img: Optional[ImageTk.PhotoImage] = None
-        self.img_hidden: Optional[ImageTk.PhotoImage] = None
+    game_id: str
+    name: str
+    order_name: str
+    year: int
+    img: Optional[ImageTk.PhotoImage] = None
+    img_hidden: Optional[ImageTk.PhotoImage] = None
+
+    class Config:
+        arbitrary_types_allowed = True
 
     def generate_cover_image(self, width: int, _height: int) -> ImageTk.PhotoImage:
         """generates TK image if it wasn't generated yet"""

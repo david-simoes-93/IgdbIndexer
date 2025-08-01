@@ -78,7 +78,7 @@ def query_igdb(game_id: str, access_token: str) -> Optional[Dict[str, str]]:
         print("\tNo image found!")
 
     game_json = {
-        "id": game_id,
+        "game_id": game_id,
         "name": name.strip(),
         "order_name": order_name.strip(),
         "year": year,

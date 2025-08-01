@@ -2,7 +2,8 @@
 
 import os
 
-from igdb_indexer.gui import make_gui
+from igdb_indexer.gui import MainWindow
+from igdb_indexer.json_interface import get_all_json
 
 
 def main():
@@ -11,15 +12,10 @@ def main():
         os.makedirs("user_data")
 
     # grab all JSON files
-    list_of_jsons = []
-    for file in os.listdir("user_data"):
-        if not file.endswith(".json"):
-            continue
-        list_of_jsons.append(file)
-    list_of_jsons.sort()
+    list_of_jsons = get_all_json()
 
     # create TK window
-    window = make_gui(list_of_jsons)
+    window = MainWindow(list_of_jsons)
     window.mainloop()
 
 
