@@ -228,6 +228,8 @@ class GameSearchBar(tk.Frame):
 
 
 class GamesTab(tk.Frame):
+    """The tab with the games, a scroll bar, and a search bar"""
+
     cols: int = 5
 
     def __init__(self, file: str, tab_control: ttk.Notebook, game_width_px: int):
@@ -274,41 +276,31 @@ class MainWindow(tk.Tk):
         # Create a context menu
         context_menu = tk.Menu(self.tab_control, tearoff=False)
         context_menu.add_command(label="Add new tab", command=self.show_new_tab_window)
-        context_menu.add_command(label="Remove tab", command=self.show_remove_tab_window)
-        context_menu.add_command(label="Update tab", command=self.show_update_tab_window)
+        context_menu.add_command(label="Remove current tab", command=self.remove_tab)
+        context_menu.add_command(label="Update current tab", command=self.update_tab)
         context_menu.bind("<Leave>", lambda _event: context_menu.unpost())
         self.tab_control.bind("<Button-3>", lambda event: context_menu.post(event.x_root - 1, event.y_root - 1))
 
     def make_tab(self, file: str) -> None:
         self.tabs.append(GamesTab(file, self.tab_control, self.games_width_px))
 
-    def remove_tab(self, tab_name: str) -> None:
-        for _index, tab_id in enumerate(self.tab_control.tabs()):
-            if self.tab_control.tab(tab_id)["text"] == tab_name:
-                self.tab_control.tab(tab_id, state="hidden")
+    def remove_tab(self) -> None:
+        tab_name: str = self.tab_control.tab(self.tab_control.select(), "text")
+        self.tab_control.tab(self.tab_control.select(), state="hidden")
         self.tabs = [games_tab for games_tab in self.tabs if games_tab.tab_name != tab_name]
         remove_json(tab_name + ".json")
 
     def get_tab_names(self) -> List[str]:
         return [games_tab.tab_name for games_tab in self.tabs]
 
+    def update_tab(self) -> None:
+        if len(self.get_tab_names()) == 0:
+            return
+        tab_name: str = self.tab_control.tab(self.tab_control.select(), "text")
+        next(games_tab for games_tab in self.tabs if games_tab.tab_name == tab_name).games_list_page.update_all_games()
+
     def show_new_tab_window(self) -> None:
         NewTabWindow(self)
-
-    def show_remove_tab_window(self) -> None:
-        if len(self.get_tab_names()) == 0:
-            return
-        RemoveTabWindow(self)
-
-    def show_update_tab_window(self) -> None:
-        if len(self.get_tab_names()) == 0:
-            return
-        UpdateTabWindow(self)
-
-    def update_tab(self, tab_name: str) -> None:
-        if len(self.get_tab_names()) == 0:
-            return
-        next(games_tab for games_tab in self.tabs if games_tab.tab_name == tab_name).games_list_page.update_all_games()
 
 
 class NewTabWindow(tk.Toplevel):
@@ -336,80 +328,6 @@ class NewTabWindow(tk.Toplevel):
     # Function to handle OK button click
     def on_ok(self) -> None:
         self.main_window.make_tab(self.entry.get() + ".json")
-        self.destroy()
-
-    # Function to handle Cancel button click
-    def on_cancel(self) -> None:
-        self.destroy()
-
-
-class RemoveTabWindow(tk.Toplevel):
-    def __init__(self, main_window: MainWindow):
-        super().__init__()
-        self.main_window = main_window
-        self.title("Tab Name?")
-        self.geometry("300x100")
-
-        tab_names = self.main_window.get_tab_names()
-        assert len(tab_names) > 0
-
-        # Selected option variable
-        self.opt = tk.StringVar(value=tab_names[0])
-
-        # Dropdown menu
-        tk.OptionMenu(self, self.opt, *tab_names).pack()
-
-        # Buttons
-        button_frame = tk.Frame(self)
-
-        ok_button = tk.Button(button_frame, text="Remove", command=self.on_ok)
-        ok_button.pack(side="left", padx=5)
-
-        cancel_button = tk.Button(button_frame, text="Cancel", command=self.on_cancel)
-        cancel_button.pack(side="right", padx=5)
-
-        button_frame.pack(pady=10)
-
-    # Function to handle OK button click
-    def on_ok(self) -> None:
-        self.main_window.remove_tab(self.opt.get())
-        self.destroy()
-
-    # Function to handle Cancel button click
-    def on_cancel(self) -> None:
-        self.destroy()
-
-
-class UpdateTabWindow(tk.Toplevel):
-    def __init__(self, main_window: MainWindow):
-        super().__init__()
-        self.main_window = main_window
-        self.title("Tab Name?")
-        self.geometry("300x100")
-
-        tab_names = self.main_window.get_tab_names()
-        assert len(tab_names) > 0
-
-        # Selected option variable
-        self.opt = tk.StringVar(value=tab_names[0])
-
-        # Dropdown menu
-        tk.OptionMenu(self, self.opt, *tab_names).pack()
-
-        # Buttons
-        button_frame = tk.Frame(self)
-
-        ok_button = tk.Button(button_frame, text="Update", command=self.on_ok)
-        ok_button.pack(side="left", padx=5)
-
-        cancel_button = tk.Button(button_frame, text="Cancel", command=self.on_cancel)
-        cancel_button.pack(side="right", padx=5)
-
-        button_frame.pack(pady=10)
-
-    # Function to handle OK button click
-    def on_ok(self) -> None:
-        self.main_window.update_tab(self.opt.get())
         self.destroy()
 
     # Function to handle Cancel button click

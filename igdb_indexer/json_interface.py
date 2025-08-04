@@ -23,6 +23,7 @@ def save_json(json_file_name: str, games_json: Dict[str, List[GameDetails]]) -> 
     json_path = os.path.join("user_data", json_file_name)
     with open(json_path, "w") as outfile:
         json.dump(games_json, outfile, indent=4)
+    print(f"Saved {json_path}")
 
 
 def remove_json(json_file_name: str) -> None:
@@ -45,6 +46,7 @@ def remove_json(json_file_name: str) -> None:
     # remove list
     json_path = os.path.join("user_data", json_file_name)
     os.remove(json_path)
+    print(f"Removed {json_path}")
 
 
 def get_all_json() -> List[str]:
