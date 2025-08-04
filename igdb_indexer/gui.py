@@ -15,36 +15,6 @@ from igdb_indexer.json_interface import (
 )
 
 
-class GameFrame(tk.Frame):
-    """a single game frame, with title, date, id, and cover image"""
-
-    def __init__(self, root: tk.Frame, game_info: GameDetails, game_width_px: int):
-        tk.Frame.__init__(self, master=root, borderwidth=1, background="white")
-        self.game_info: GameDetails = game_info
-        self.label_title = tk.Label(
-            master=self,
-            text=game_info.name,
-            background="white",
-            wraplength=game_width_px,
-            font="Helvetica 15 bold",
-        )
-        self.label_year = tk.Label(
-            master=self,
-            text=str(game_info.year) + " - #" + game_info.game_id,
-            background="white",
-            wraplength=game_width_px,
-        )
-        self.label_img = tk.Label(
-            master=self,
-            image=game_info.generate_cover_image(game_width_px, int(game_width_px * 1.9)),
-        )
-        self.label_pad = tk.Label(master=self, background="white", font="Helvetica 5")
-        self.label_title.pack()
-        self.label_year.pack()
-        self.label_img.pack()
-        self.label_pad.pack()
-
-
 class GamesListPage(tk.Frame):
     """A TK Frame that will group and show the actual game frames in a grid-like fashion"""
 
@@ -84,7 +54,7 @@ class GamesListPage(tk.Frame):
         for index in range(len(games_list)):
             row = int(index / self.cols)
             col = index % self.cols
-            game_frame = GameFrame(self.frame, games_list[index], self.game_width_px)
+            game_frame = GameFrame(self, games_list[index], self.game_width_px)
             game_frame.grid(row=row, column=col, sticky="s")
             self.game_widgets.append(game_frame)
 
@@ -113,6 +83,96 @@ class GamesListPage(tk.Frame):
     def _on_mousewheel_linux_up(self, _event) -> None:
         self.canvas.yview_scroll(-1, "units")
 
+    def remove_game(self, game_id: str) -> None:
+        """removes a game given its ID"""
+
+        # load JSON file
+        games_json = load_json(self.tab_name + ".json")
+
+        # remove game from list
+        prev_size: int = len(games_json["games"])
+        games_json["games"] = [game for game in games_json["games"] if game["game_id"] != game_id]
+        if len(games_json["games"]) == prev_size:
+            print(f"Game {game_id} not found")
+            return
+
+        # update JSON file
+        save_json(self.tab_name + ".json", games_json)
+        print(f"Game {game_id} removed")
+
+        # update tab
+        self.update_games_list_tab()
+
+    def update_all_games(self) -> None:
+        games_json = {"games": []}
+
+        # fetch all games from current tab
+        access_token = get_auth_token()
+        for game_details in self.game_widgets:
+            game_json = query_igdb(game_details.game_info.game_id, access_token)
+            if game_json is None:
+                print(f"Game {game_details.game_info.game_id} no longer found")
+                continue
+            games_json["games"].append(game_json)
+
+        # update JSON file
+        save_json(self.tab_name + ".json", games_json)
+
+        # update tab
+        self.update_games_list_tab()
+
+    def update_games_list_tab(self) -> None:
+        """re-creates the tab from scratch"""
+        for game_frame in self.game_widgets:
+            game_frame.destroy()
+        self.game_widgets = []
+        json_name: str = self.tab_name + ".json"
+        self.make_game_frames(load_json_as_games_list(json_name))
+
+
+class GameFrame(tk.Frame):
+    """a single game frame, with title, date, id, and cover image"""
+
+    def __init__(self, tab: GamesListPage, game_info: GameDetails, game_width_px: int):
+        tk.Frame.__init__(self, master=tab.frame, borderwidth=1, background="white")
+        self.tab = tab
+        self.game_info: GameDetails = game_info
+        self.label_title = tk.Label(
+            master=self,
+            text=game_info.name,
+            background="white",
+            wraplength=game_width_px,
+            font="Helvetica 15 bold",
+        )
+        self.label_year = tk.Label(
+            master=self,
+            text=str(game_info.year) + " - #" + game_info.game_id,
+            background="white",
+            wraplength=game_width_px,
+        )
+        self.label_img = tk.Label(
+            master=self,
+            image=game_info.generate_cover_image(game_width_px, int(game_width_px * 1.9)),
+        )
+        self.label_pad = tk.Label(master=self, background="white", font="Helvetica 5")
+        self.label_title.pack()
+        self.label_year.pack()
+        self.label_img.pack()
+        self.label_pad.pack()
+
+        # Create a context menu
+        self.context_menu = tk.Menu(self, tearoff=False)
+        self.context_menu.add_command(label="Remove", command=self.remove_game)
+        self.context_menu.bind("<Leave>", lambda _event: self.context_menu.unpost())
+        self.bind("<Button-3>", self.open_right_click_menu)
+        self.label_img.bind("<Button-3>", self.open_right_click_menu)
+
+    def open_right_click_menu(self, event):
+        self.context_menu.post(event.x_root - 1, event.y_root - 1)
+
+    def remove_game(self) -> None:
+        self.tab.remove_game(self.game_info.game_id)
+
 
 class GameSearchBar(tk.Frame):
     """A frame with a search bar that will filter/add/remove/update games on the given page"""
@@ -127,22 +187,10 @@ class GameSearchBar(tk.Frame):
         self.text_box = tk.Entry(self, width=1000)
         filter_button = tk.Button(self, text="Filter", command=self.filter_button_cb)
         add_button = tk.Button(self, text="Add", command=self.add_button_cb)
-        remove_button = tk.Button(self, text="Remove", command=self.remove_button_cb)
-        update_button = tk.Button(self, text="Update All", command=self.update_button_cb)
 
         self.text_box.grid(column=0, row=0)
         filter_button.grid(column=1, row=0)
         add_button.grid(column=2, row=0)
-        remove_button.grid(column=3, row=0)
-        update_button.grid(column=4, row=0)
-
-    def update_games_list_tab(self) -> None:
-        """re-creates the tab from scratch"""
-        for game_frame in self.games_list_page.game_widgets:
-            game_frame.destroy()
-        self.games_list_page.game_widgets = []
-        json_name: str = self.games_list_page.tab_name + ".json"
-        self.games_list_page.make_game_frames(load_json_as_games_list(json_name))
 
     def filter_button_cb(self) -> None:
         search_filter = self.text_box.get().lower()
@@ -176,53 +224,34 @@ class GameSearchBar(tk.Frame):
         self.text_box.delete(0, "end")
 
         # update tab
-        self.update_games_list_tab()
+        self.games_list_page.update_games_list_tab()
 
-    def update_button_cb(self) -> None:
-        games_json = {"games": []}
 
-        # fetch all games from current tab
-        access_token = get_auth_token()
-        for game_details in self.games_list_page.game_widgets:
-            game_json = query_igdb(game_details.game_info.game_id, access_token)
-            if game_json is None:
-                print(f"Game {game_details.game_info.game_id} no longer found")
-                continue
-            games_json["games"].append(game_json)
+class GamesTab(tk.Frame):
+    cols: int = 5
 
-        # update JSON file
-        save_json(self.games_list_page.tab_name + ".json", games_json)
+    def __init__(self, file: str, tab_control: ttk.Notebook, game_width_px: int):
+        self.game_width_px: int = game_width_px
 
-        # update tab
-        self.update_games_list_tab()
+        self.tab_name: str = file[:-5]  # remove ".json" suffix
+        print(f"\t{self.tab_name}")
 
-    def remove_button_cb(self) -> None:
-        game_id = self.text_box.get()
-        if not game_id.isdigit():
-            print(f"Invalid game id: {game_id}")
-            return
+        super().__init__(tab_control)
+        tab_control.add(self, text=self.tab_name)
+        self.update()
 
-        # load JSON file
-        games_json = load_json(self.games_list_page.tab_name + ".json")
+        games_list: List[GameDetails] = load_json_as_games_list(file)
+        self.games_list_page = GamesListPage(self, self.tab_name, games_list, self.cols, self.game_width_px)
+        bottom_search_bar = GameSearchBar(self, self.games_list_page)
 
-        # remove game from list
-        prev_size: int = len(games_json["games"])
-        games_json["games"] = [game for game in games_json["games"] if game["game_id"] != game_id]
-        if len(games_json["games"]) == prev_size:
-            print(f"Game {game_id} not found")
-            return
-
-        # update JSON file
-        save_json(self.games_list_page.tab_name + ".json", games_json)
-        print(f"Game {game_id} removed")
-        self.text_box.delete(0, "end")
-
-        # update tab
-        self.update_games_list_tab()
+        bottom_search_bar.pack(side="bottom", fill="x")
+        self.games_list_page.pack(side="top", fill="both", expand=True)
 
 
 class MainWindow(tk.Tk):
     """Creates the main GUI"""
+
+    cols: int = 5
 
     def __init__(self, list_of_jsons: List[str]):
         super().__init__()
@@ -232,13 +261,13 @@ class MainWindow(tk.Tk):
         self.iconphoto(False, tk.PhotoImage(file=os.path.join("igdb_indexer", "igdb.png")))
         self.update()
 
-        self.cols: int = 5
-        self.game_width_px: int = round((self.winfo_width() - 40) / 5)
-
         self.tab_control = ttk.Notebook(self)
         self.tab_control.pack(expand=1, fill="both")
 
+        self.games_width_px: int = round((self.winfo_width() - 40) / self.cols)
+
         print("Loading tabs:")
+        self.tabs: List[GamesTab] = []
         for file in list_of_jsons:
             self.make_tab(file)
 
@@ -246,41 +275,22 @@ class MainWindow(tk.Tk):
         context_menu = tk.Menu(self.tab_control, tearoff=False)
         context_menu.add_command(label="Add new tab", command=self.show_new_tab_window)
         context_menu.add_command(label="Remove tab", command=self.show_remove_tab_window)
+        context_menu.add_command(label="Update tab", command=self.show_update_tab_window)
         context_menu.bind("<Leave>", lambda _event: context_menu.unpost())
-
-        # Bind the context menu to the tabs window
-        self.tab_control.bind("<Button-3>", lambda event: context_menu.post(event.x_root, event.y_root))
+        self.tab_control.bind("<Button-3>", lambda event: context_menu.post(event.x_root - 1, event.y_root - 1))
 
     def make_tab(self, file: str) -> None:
-        tab_name: str = file[:-5]  # remove ".json" suffix
-        print(f"\t{tab_name}")
-
-        tab = ttk.Frame(self.tab_control)
-        self.tab_control.add(tab, text=tab_name)
-        tab.update()
-
-        games_list: List[GameDetails] = load_json_as_games_list(file)
-        games_list_page = GamesListPage(tab, tab_name, games_list, self.cols, self.game_width_px)
-        bottom_search_bar = GameSearchBar(tab, games_list_page)
-
-        bottom_search_bar.pack(side="bottom", fill="x")
-        games_list_page.pack(side="top", fill="both", expand=True)
+        self.tabs.append(GamesTab(file, self.tab_control, self.games_width_px))
 
     def remove_tab(self, tab_name: str) -> None:
         for _index, tab_id in enumerate(self.tab_control.tabs()):
-            if self.tab_control.tab(tab_id)["text"] != tab_name:
-                continue
-            self.tab_control.tab(tab_id, state="hidden")
-            remove_json(tab_name + ".json")
+            if self.tab_control.tab(tab_id)["text"] == tab_name:
+                self.tab_control.tab(tab_id, state="hidden")
+        self.tabs = [games_tab for games_tab in self.tabs if games_tab.tab_name != tab_name]
+        remove_json(tab_name + ".json")
 
     def get_tab_names(self) -> List[str]:
-        tab_names: List[str] = []
-        for _index, tab_id in enumerate(self.tab_control.tabs()):
-            tab_info = self.tab_control.tab(tab_id)
-            if tab_info["state"] != "normal":
-                continue
-            tab_names.append(tab_info["text"])
-        return tab_names
+        return [games_tab.tab_name for games_tab in self.tabs]
 
     def show_new_tab_window(self) -> None:
         NewTabWindow(self)
@@ -289,6 +299,16 @@ class MainWindow(tk.Tk):
         if len(self.get_tab_names()) == 0:
             return
         RemoveTabWindow(self)
+
+    def show_update_tab_window(self) -> None:
+        if len(self.get_tab_names()) == 0:
+            return
+        UpdateTabWindow(self)
+
+    def update_tab(self, tab_name: str) -> None:
+        if len(self.get_tab_names()) == 0:
+            return
+        next(games_tab for games_tab in self.tabs if games_tab.tab_name == tab_name).games_list_page.update_all_games()
 
 
 class NewTabWindow(tk.Toplevel):
@@ -353,6 +373,43 @@ class RemoveTabWindow(tk.Toplevel):
     # Function to handle OK button click
     def on_ok(self) -> None:
         self.main_window.remove_tab(self.opt.get())
+        self.destroy()
+
+    # Function to handle Cancel button click
+    def on_cancel(self) -> None:
+        self.destroy()
+
+
+class UpdateTabWindow(tk.Toplevel):
+    def __init__(self, main_window: MainWindow):
+        super().__init__()
+        self.main_window = main_window
+        self.title("Tab Name?")
+        self.geometry("300x100")
+
+        tab_names = self.main_window.get_tab_names()
+        assert len(tab_names) > 0
+
+        # Selected option variable
+        self.opt = tk.StringVar(value=tab_names[0])
+
+        # Dropdown menu
+        tk.OptionMenu(self, self.opt, *tab_names).pack()
+
+        # Buttons
+        button_frame = tk.Frame(self)
+
+        ok_button = tk.Button(button_frame, text="Update", command=self.on_ok)
+        ok_button.pack(side="left", padx=5)
+
+        cancel_button = tk.Button(button_frame, text="Cancel", command=self.on_cancel)
+        cancel_button.pack(side="right", padx=5)
+
+        button_frame.pack(pady=10)
+
+    # Function to handle OK button click
+    def on_ok(self) -> None:
+        self.main_window.update_tab(self.opt.get())
         self.destroy()
 
     # Function to handle Cancel button click
