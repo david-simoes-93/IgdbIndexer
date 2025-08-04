@@ -104,22 +104,28 @@ class GamesListPage(tk.Frame):
         self.update_games_list_tab()
 
     def update_all_games(self) -> None:
+        processing_window = ProcessingWindow(len(self.game_widgets))
+        self.update()
+
         games_json = {"games": []}
 
         # fetch all games from current tab
         access_token = get_auth_token()
-        for game_details in self.game_widgets:
+        for index, game_details in enumerate(self.game_widgets):
             game_json = query_igdb(game_details.game_info.game_id, access_token)
             if game_json is None:
                 print(f"Game {game_details.game_info.game_id} no longer found")
                 continue
             games_json["games"].append(game_json)
+            processing_window.update_progress(index)
 
         # update JSON file
         save_json(self.tab_name + ".json", games_json)
 
         # update tab
         self.update_games_list_tab()
+
+        processing_window.destroy()
 
     def update_games_list_tab(self) -> None:
         """re-creates the tab from scratch"""
@@ -270,8 +276,12 @@ class MainWindow(tk.Tk):
 
         print("Loading tabs:")
         self.tabs: List[GamesTab] = []
-        for file in list_of_jsons:
+        processing_window = ProcessingWindow(len(list_of_jsons))
+        processing_window.update()
+        for index, file in enumerate(list_of_jsons):
             self.make_tab(file)
+            processing_window.update_progress(index)
+        processing_window.destroy()
 
         # Create a context menu
         context_menu = tk.Menu(self.tab_control, tearoff=False)
@@ -333,3 +343,20 @@ class NewTabWindow(tk.Toplevel):
     # Function to handle Cancel button click
     def on_cancel(self) -> None:
         self.destroy()
+
+
+class ProcessingWindow(tk.Toplevel):
+    def __init__(self, max_progress: int):
+        super().__init__()
+        self.title("Processing")
+        self.geometry("300x100")
+
+        self.max_progress = max_progress
+
+        # Add a label to the processing window
+        self.label = ttk.Label(self, text=f"Processing... 0/{self.max_progress}")
+        self.label.pack(pady=20)
+
+    def update_progress(self, progress: int):
+        self.label.config(text=f"Processing... {progress}/{self.max_progress}")
+        self.update()
