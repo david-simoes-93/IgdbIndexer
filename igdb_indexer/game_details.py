@@ -4,7 +4,7 @@ import math
 import os
 from typing import Optional
 
-from PIL import Image, ImageTk
+from PIL import Image, ImageEnhance, ImageTk
 from pydantic import BaseModel
 
 
@@ -36,12 +36,11 @@ class GameDetails(BaseModel):
                     Image.Resampling.LANCZOS,
                 )
             )
-        if self.img_hidden is None:
-            img = Image.open(os.path.join("igdb_indexer", "default.jpg"))
-            ratio_hidden: float = width / img.width
+
+            dark_img = ImageEnhance.Brightness(img).enhance(0.1)
             self.img_hidden = ImageTk.PhotoImage(
-                img.resize(
-                    (math.floor(img.width * ratio_hidden), math.floor(img.height * ratio_hidden)),
+                dark_img.resize(
+                    (math.floor(dark_img.width * ratio), math.floor(dark_img.height * ratio)),
                     Image.Resampling.LANCZOS,
                 )
             )

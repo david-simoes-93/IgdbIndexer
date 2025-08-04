@@ -182,11 +182,11 @@ class GameSearchBar(tk.Frame):
         self.games_list_page = games_list_page
 
         self.grid_columnconfigure(0, weight=1)
-
-        # Create text widget and specify size.
         self.text_box = tk.Entry(self, width=1000)
         filter_button = tk.Button(self, text="Filter", command=self.filter_button_cb)
         add_button = tk.Button(self, text="Add", command=self.add_button_cb)
+
+        self.text_box.bind("<Return>", lambda _event: self.filter_button_cb())
 
         self.text_box.grid(column=0, row=0)
         filter_button.grid(column=1, row=0)
