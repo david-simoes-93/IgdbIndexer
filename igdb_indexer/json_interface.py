@@ -43,7 +43,7 @@ def remove_json(json_file_name: str) -> None:
             continue
         try:
             os.remove(os.path.join("user_data", game["game_id"] + ".jpg"))
-        except Exception as e:
+        except Exception:
             print(f"Failed to remove cover img for {game['game_id']}")
 
     # remove list

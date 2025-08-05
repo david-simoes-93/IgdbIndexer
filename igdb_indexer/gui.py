@@ -3,7 +3,7 @@
 import os
 import tkinter as tk
 from tkinter import ttk
-from typing import List
+from typing import Any, Dict, List
 
 from igdb_indexer.game_details import GameDetails
 from igdb_indexer.igdb_interface import get_auth_token, query_igdb
@@ -15,12 +15,35 @@ from igdb_indexer.json_interface import (
 )
 
 
+class GamesTab(tk.Frame):
+    """The tab with the games, a scroll bar, and a search bar"""
+
+    cols: int = 5
+
+    def __init__(self, file: str, tab_control: ttk.Notebook, game_width_px: int):
+        self.game_width_px: int = game_width_px
+
+        self.tab_name: str = file[:-5]  # remove ".json" suffix
+        print(f"\t{self.tab_name}")
+
+        super().__init__(tab_control)
+        tab_control.add(self, text=self.tab_name)
+        self.update()
+
+        games_list: List[GameDetails] = load_json_as_games_list(file)
+        self.games_list_page = GamesListPage(self, self.tab_name, games_list, self.cols, self.game_width_px)
+        bottom_search_bar = GameSearchBar(self, self.games_list_page)
+
+        bottom_search_bar.pack(side="bottom", fill="x")
+        self.games_list_page.pack(side="top", fill="both", expand=True)
+
+
 class GamesListPage(tk.Frame):
     """A TK Frame that will group and show the actual game frames in a grid-like fashion"""
 
-    def __init__(self, root: ttk.Frame, tab_name: str, games_list: List[GameDetails], cols: int, game_width_px: int):
+    def __init__(self, root: GamesTab, tab_name: str, games_list: List[GameDetails], cols: int, game_width_px: int):
         tk.Frame.__init__(self, root)
-        self.root: ttk.Frame = root
+        self.root: GamesTab = root
         self.cols: int = cols
         self.game_widgets: List[GameFrame] = []
         self.tab_name: str = tab_name
@@ -107,7 +130,7 @@ class GamesListPage(tk.Frame):
         processing_window = ProcessingWindow(len(self.game_widgets))
         self.update()
 
-        games_json = {"games": []}
+        games_json: Dict[str, Any] = {"games": []}
 
         # fetch all games from current tab
         access_token = get_auth_token()
@@ -115,7 +138,7 @@ class GamesListPage(tk.Frame):
             game_json = query_igdb(game_details.game_info.game_id, access_token)
             if game_json is None:
                 print(f"Game {game_details.game_info.game_id} no longer found")
-                game_json = game_details.to_json()
+                game_json = game_details.game_info.to_json()
             games_json["games"].append(game_json)
             processing_window.update_progress(index)
 
@@ -141,7 +164,7 @@ class GamesListPage(tk.Frame):
 
         # fetch game from IGDB
         access_token = get_auth_token()
-        game_json = query_igdb(game_id, access_token)
+        game_json = query_igdb(str(game_id), access_token)
         if game_json is None:
             print(f"Game {game_id} not found")
             return
@@ -156,11 +179,10 @@ class GamesListPage(tk.Frame):
         self.update_games_list_tab()
 
     def filter_games(self, text: str) -> None:
-        for game_frame in self.games_list_page.game_widgets:
-            if text not in game_frame.game_info.name and text not in game_frame.game_info.order_name:
-                game_frame.label_img.configure(image=game_frame.game_info.img_hidden)
-            else:
-                game_frame.label_img.configure(image=game_frame.game_info.img)
+        for game_frame in self.game_widgets:
+            game_frame.set_img_hidden(
+                text not in game_frame.game_info.name and text not in game_frame.game_info.order_name
+            )
 
 
 class GameFrame(tk.Frame):
@@ -206,11 +228,17 @@ class GameFrame(tk.Frame):
     def remove_game(self) -> None:
         self.tab.remove_game(self.game_info.game_id)
 
+    def set_img_hidden(self, hidden: bool):
+        if hidden:
+            self.label_img.configure(image=self.game_info.img_hidden)
+        else:
+            self.label_img.configure(image=self.game_info.img)
+
 
 class GameSearchBar(tk.Frame):
     """A frame with a search bar"""
 
-    def __init__(self, root: ttk.Frame, games_list_page: GamesListPage):
+    def __init__(self, root: GamesTab, games_list_page: GamesListPage):
         tk.Frame.__init__(self, root)
         self.games_list_page = games_list_page
 
@@ -224,29 +252,6 @@ class GameSearchBar(tk.Frame):
 
     def text_bar_changed_cb(self, _name, _index, _mode):
         self.games_list_page.filter_games(self.sv.get())
-
-
-class GamesTab(tk.Frame):
-    """The tab with the games, a scroll bar, and a search bar"""
-
-    cols: int = 5
-
-    def __init__(self, file: str, tab_control: ttk.Notebook, game_width_px: int):
-        self.game_width_px: int = game_width_px
-
-        self.tab_name: str = file[:-5]  # remove ".json" suffix
-        print(f"\t{self.tab_name}")
-
-        super().__init__(tab_control)
-        tab_control.add(self, text=self.tab_name)
-        self.update()
-
-        games_list: List[GameDetails] = load_json_as_games_list(file)
-        self.games_list_page = GamesListPage(self, self.tab_name, games_list, self.cols, self.game_width_px)
-        bottom_search_bar = GameSearchBar(self, self.games_list_page)
-
-        bottom_search_bar.pack(side="bottom", fill="x")
-        self.games_list_page.pack(side="top", fill="both", expand=True)
 
 
 class MainWindow(tk.Tk):
@@ -379,7 +384,7 @@ class NewGameWindow(tk.Toplevel):
         if not game_id.isdigit():
             print(f"Invalid game id: {game_id}")
             return
-        self.main_window.add_new_game_to_tab(game_id)
+        self.main_window.add_new_game_to_tab(int(game_id))
         self.destroy()
 
     # Function to handle Cancel button click

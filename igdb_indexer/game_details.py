@@ -2,7 +2,7 @@
 
 import math
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from PIL import Image, ImageEnhance, ImageTk
 from pydantic import BaseModel
@@ -15,8 +15,8 @@ class GameDetails(BaseModel):
     name: str
     order_name: str
     year: int
-    img: Optional[ImageTk.PhotoImage] = None
-    img_hidden: Optional[ImageTk.PhotoImage] = None
+    img: ImageTk.PhotoImage = None
+    img_hidden: ImageTk.PhotoImage = None
 
     class Config:
         arbitrary_types_allowed = True
