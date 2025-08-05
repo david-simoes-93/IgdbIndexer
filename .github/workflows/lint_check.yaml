@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: apt install libjpeg8-dev zlib1g-dev
+      - run: sudo apt install libjpeg8-dev zlib1g-dev
       - run: pip install --upgrade pip
       - run: pip install -r requirements.txt
       - uses: ricardochaves/python-lint@v1.4.0
