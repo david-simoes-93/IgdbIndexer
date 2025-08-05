@@ -18,7 +18,7 @@ def load_json(json_file_name: str) -> Dict[str, Any]:
     return games_json
 
 
-def save_json(json_file_name: str, games_json: Dict[str, List[GameDetails]]) -> None:
+def save_json(json_file_name: str, games_json: Dict[str, Any]) -> None:
     """save JSON file"""
     json_path = os.path.join("user_data", json_file_name)
     with open(json_path, "w") as outfile:
@@ -41,7 +41,10 @@ def remove_json(json_file_name: str) -> None:
     for game in load_json(json_file_name)["games"]:
         if game["game_id"] in other_games:
             continue
-        os.remove(os.path.join("user_data", game["game_id"] + ".jpg"))
+        try:
+            os.remove(os.path.join("user_data", game["game_id"] + ".jpg"))
+        except Exception as e:
+            print(f"Failed to remove cover img for {game['game_id']}")
 
     # remove list
     json_path = os.path.join("user_data", json_file_name)

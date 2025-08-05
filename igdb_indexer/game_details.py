@@ -2,7 +2,7 @@
 
 import math
 import os
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from PIL import Image, ImageEnhance, ImageTk
 from pydantic import BaseModel
@@ -49,3 +49,6 @@ class GameDetails(BaseModel):
     def __lt__(self, other) -> bool:
         """order GameDetails by order_name"""
         return self.order_name < other.order_name
+
+    def to_json(self) -> Dict[str, Any]:
+        return {"game_id": self.game_id, "name": self.name, "order_name": self.order_name, "year": self.year}
