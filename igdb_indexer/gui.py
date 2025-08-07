@@ -20,33 +20,41 @@ class GamesTab(tk.Frame):
 
     cols: int = 5
 
-    def __init__(self, file: str, tab_control: ttk.Notebook, game_width_px: int):
+    def __init__(self, json_name: str, tab_control: ttk.Notebook, game_width_px: int):
         self.game_width_px: int = game_width_px
 
-        self.tab_name: str = file[:-5]  # remove ".json" suffix
-        print(f"\t{self.tab_name}")
+        games_list: List[GameDetails] = load_json_as_games_list(json_name)
+
+        self.tab_name = f"{json_name[:-5]}"  # remove ".json" suffix
+        tab_name_with_size: str = f"{self.tab_name} ({len(games_list)})"  # add size
+        print(f"\t{tab_name_with_size}")
 
         super().__init__(tab_control)
-        tab_control.add(self, text=self.tab_name)
+        self.tab_control = tab_control
+        self.tab_control.add(self, text=tab_name_with_size)
         self.update()
 
-        games_list: List[GameDetails] = load_json_as_games_list(file)
-        self.games_list_page = GamesListPage(self, self.tab_name, games_list, self.cols, self.game_width_px)
+        self.games_list_page = GamesListPage(self, json_name, games_list, self.cols, self.game_width_px)
         bottom_search_bar = GameSearchBar(self, self.games_list_page)
 
         bottom_search_bar.pack(side="bottom", fill="x")
         self.games_list_page.pack(side="top", fill="both", expand=True)
 
+    def update_games_count(self) -> None:
+        self.tab_control.tab(
+            self.tab_control.select(), text=f"{self.tab_name} ({len(self.games_list_page.game_widgets)})"
+        )
+
 
 class GamesListPage(tk.Frame):
     """A TK Frame that will group and show the actual game frames in a grid-like fashion"""
 
-    def __init__(self, root: GamesTab, tab_name: str, games_list: List[GameDetails], cols: int, game_width_px: int):
+    def __init__(self, root: GamesTab, json_name: str, games_list: List[GameDetails], cols: int, game_width_px: int):
         tk.Frame.__init__(self, root)
         self.root: GamesTab = root
         self.cols: int = cols
         self.game_widgets: List[GameFrame] = []
-        self.tab_name: str = tab_name
+        self.json_name: str = json_name
         self.game_width_px: int = game_width_px
 
         # canvas with a scrollbar and a frame inside it
@@ -110,7 +118,7 @@ class GamesListPage(tk.Frame):
         """removes a game given its ID"""
 
         # load JSON file
-        games_json = load_json(self.tab_name + ".json")
+        games_json = load_json(self.json_name)
 
         # remove game from list
         prev_size: int = len(games_json["games"])
@@ -120,7 +128,7 @@ class GamesListPage(tk.Frame):
             return
 
         # update JSON file
-        save_json(self.tab_name + ".json", games_json)
+        save_json(self.json_name, games_json)
         print(f"Game {game_id} removed")
 
         # update tab
@@ -143,7 +151,7 @@ class GamesListPage(tk.Frame):
             processing_window.update_progress(index)
 
         # update JSON file
-        save_json(self.tab_name + ".json", games_json)
+        save_json(self.json_name, games_json)
 
         # update tab
         self.update_games_list_tab()
@@ -155,12 +163,13 @@ class GamesListPage(tk.Frame):
         for game_frame in self.game_widgets:
             game_frame.destroy()
         self.game_widgets = []
-        json_name: str = self.tab_name + ".json"
+        json_name: str = self.json_name
         self.make_game_frames(load_json_as_games_list(json_name))
+        self.root.update_games_count()
 
     def add_new_game(self, game_id: int) -> None:
         # load JSON file
-        games_json = load_json(self.tab_name + ".json")
+        games_json = load_json(self.json_name)
 
         # fetch game from IGDB
         access_token = get_auth_token()
@@ -172,7 +181,7 @@ class GamesListPage(tk.Frame):
         games_json["games"].append(game_json)
 
         # update JSON file
-        save_json(self.tab_name + ".json", games_json)
+        save_json(self.json_name, games_json)
         print(f"Game {game_id} added")
 
         # update tab
@@ -291,22 +300,28 @@ class MainWindow(tk.Tk):
         context_menu.bind("<Leave>", lambda _event: context_menu.unpost())
         self.tab_control.bind("<Button-3>", lambda event: context_menu.post(event.x_root - 1, event.y_root - 1))
 
-    def get_tab_names(self) -> List[str]:
-        return [games_tab.tab_name for games_tab in self.tabs]
+    def get_current_tab_name(self) -> str:
+        if len(self.tabs) == 0:
+            return ""
+        tab_name_with_size: str = self.tab_control.tab(self.tab_control.select(), "text")
+        tab_name = tab_name_with_size[: -len(tab_name_with_size.split("(")[-1]) - 2]
+        return tab_name
 
     def make_tab(self, file: str) -> None:
         self.tabs.append(GamesTab(file, self.tab_control, self.games_width_px))
 
     def remove_tab(self) -> None:
-        tab_name: str = self.tab_control.tab(self.tab_control.select(), "text")
+        tab_name = self.get_current_tab_name()
+        if tab_name == "":
+            return
         self.tab_control.tab(self.tab_control.select(), state="hidden")
         self.tabs = [games_tab for games_tab in self.tabs if games_tab.tab_name != tab_name]
         remove_json(tab_name + ".json")
 
     def update_tab(self) -> None:
-        if len(self.get_tab_names()) == 0:
+        tab_name = self.get_current_tab_name()
+        if tab_name == "":
             return
-        tab_name: str = self.tab_control.tab(self.tab_control.select(), "text")
         next(games_tab for games_tab in self.tabs if games_tab.tab_name == tab_name).games_list_page.update_all_games()
 
     def show_new_tab_window(self) -> None:
@@ -316,10 +331,11 @@ class MainWindow(tk.Tk):
         NewGameWindow(self)
 
     def add_new_game_to_tab(self, game_id: int) -> None:
-        tab_name: str = self.tab_control.tab(self.tab_control.select(), "text")
-        next(games_tab for games_tab in self.tabs if games_tab.tab_name == tab_name).games_list_page.add_new_game(
-            game_id
-        )
+        tab_name = self.get_current_tab_name()
+        if tab_name == "":
+            return
+        tab = next(games_tab for games_tab in self.tabs if games_tab.tab_name == tab_name)
+        tab.games_list_page.add_new_game(game_id)
 
 
 class NewTabWindow(tk.Toplevel):
