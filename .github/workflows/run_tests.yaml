@@ -1,0 +1,21 @@
+name: unit_tests
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+    steps:
+      - uses: actions/checkout@v3
+      - run: sudo apt update -y
+      - run: sudo apt install -y libjpeg8-dev zlib1g-dev python3-tk
+      - run: pip install --upgrade pip
+      - run: pip install -r requirements.txt
+      - run: pip install pytest coverage
+      - run: coverage run -m pytest -v -s
+      - run: coverage report -m

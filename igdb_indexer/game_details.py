@@ -18,13 +18,14 @@ class GameDetails(BaseModel):
     img: ImageTk.PhotoImage = None
     img_hidden: ImageTk.PhotoImage = None
 
+    # needed due to img and img_hidden, to appease Pydantic
     class Config:
         arbitrary_types_allowed = True
 
-    def generate_cover_image(self, width: int, _height: int) -> ImageTk.PhotoImage:
+    def generate_cover_image(self, width: int, _height: int, dir: str = "user_data") -> ImageTk.PhotoImage:
         """generates TK image if it wasn't generated yet"""
         if self.img is None:
-            img_name: str = os.path.join("user_data", self.game_id + ".jpg")
+            img_name: str = os.path.join(dir, self.game_id + ".jpg")
             if os.path.exists(img_name):
                 img = Image.open(img_name)
             else:

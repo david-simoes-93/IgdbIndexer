@@ -24,7 +24,7 @@ def get_auth_token() -> str:
     return access_token
 
 
-def query_igdb(game_id: str, access_token: str) -> Optional[Dict[str, str]]:
+def query_igdb(game_id: str, access_token: str, dir: str = "user_data") -> Optional[Dict[str, str]]:
     """queries IGDB.com, returns json struct with game info"""
     game_id = re.sub(r"\D", "", game_id)  # clean IDs from windows
     # query game info
@@ -69,7 +69,7 @@ def query_igdb(game_id: str, access_token: str) -> Optional[Dict[str, str]]:
     # download cover img
     if "cover" in response_json:
         img_url = "https:" + response_json["cover"]["url"].replace("/t_thumb/", "/t_cover_big/")
-        img_file_path = os.path.join("user_data", str(game_id) + ".jpg")
+        img_file_path = os.path.join(dir, str(game_id) + ".jpg")
         if not os.path.exists(img_file_path):
             img_data = requests.get(img_url).content
             with open(img_file_path, "wb") as handler:
