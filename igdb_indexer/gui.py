@@ -1,5 +1,6 @@
 """The GUI"""
 
+import math
 import os
 import tkinter as tk
 from tkinter import ttk
@@ -13,6 +14,9 @@ from igdb_indexer.json_interface import (
     remove_json,
     save_json,
 )
+
+GAME_WIDTH_PX = 360
+GAME_HEIGHT_PX = round(GAME_WIDTH_PX * 1.9)
 
 
 class GamesTab(tk.Frame):
@@ -58,6 +62,7 @@ class GamesListPage(tk.Frame):
         self.canvas.configure(yscrollcommand=self.vsb.set)
         self.vsb.pack(side="right", fill="y")
         self.canvas.pack(side="left", expand=1, fill="both")
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
 
         # frame inside canvas has the actual game frames
         self.frame = tk.Frame(self.canvas, background="white")
@@ -66,14 +71,8 @@ class GamesListPage(tk.Frame):
         self.frame.bind("<Enter>", self._bound_to_mousewheel)
         self.frame.bind("<Leave>", self._unbound_to_mousewheel)
 
-        # keep game frames in memory
-        self.compute_target_amount_of_columns()
+        # make games (they will be gridded later when window forms and _on_canvas_configure() is called)
         self.make_game_frames(games_list)
-
-    def compute_target_amount_of_columns(self):
-        self.frame.update()
-        self.cols = 5  # max(1, round(self.canvas.winfo_reqwidth() / 360))
-        print(f"wdith {self.frame.winfo_reqwidth()} {self.frame.winfo_width()}")
 
     def make_game_frames(self, games_list: List[GameDetails]) -> None:
         """makes a game frame for each game in games_list, places it in proper grid position"""
@@ -81,20 +80,25 @@ class GamesListPage(tk.Frame):
         for game in games_list:
             game_frame = GameFrame(self, game)
             self.game_widgets.append(game_frame)
-        self.regrid_game_frames()
-
-    def regrid_game_frames(self) -> None:
-        for index, game_frame in enumerate(self.game_widgets):
-            row = int(index / self.cols)
-            col = index % self.cols
-            game_frame.grid(row=row, column=col, sticky="s")
 
     def _on_frame_configure(self, _event) -> None:
         """Reset the scroll region to encompass the inner frame"""
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        print("_on_frame_configure")
-        self.compute_target_amount_of_columns()
-        self.regrid_game_frames()
+
+    def _on_canvas_configure(self, _event) -> None:
+        """Re-adjust game frames based on new window width"""
+        # update amount of columns
+        self.vsb.update()
+        self.canvas.update()
+        width_px = self.canvas.winfo_width() - self.vsb.winfo_width() - 10  # small additional padding
+        self.cols = max(1, math.floor(width_px / GAME_WIDTH_PX))
+
+        # regrid games
+        pad_x = max(0, math.floor((width_px - (GAME_WIDTH_PX * self.cols)) / (self.cols * 2)))
+        for index, game_frame in enumerate(self.game_widgets):
+            row = int(index / self.cols)
+            col = index % self.cols
+            game_frame.grid(row=row, column=col, sticky="s", padx=pad_x)
 
     def _bound_to_mousewheel(self, _event) -> None:
         """when frame is focused, bind mousewheel"""
@@ -202,9 +206,6 @@ class GameFrame(tk.Frame):
 
     def __init__(self, tab: GamesListPage, game_info: GameDetails):
         tk.Frame.__init__(self, master=tab.frame, borderwidth=1, background="white")
-        self.GAME_WIDTH_PX = 360
-        self.GAME_HEIGHT_PX = round(self.GAME_WIDTH_PX * 1.9)
-
         self.tab = tab
         self.game_info: GameDetails = game_info
 
@@ -212,18 +213,18 @@ class GameFrame(tk.Frame):
             master=self,
             text=game_info.name,
             background="white",
-            wraplength=self.GAME_WIDTH_PX,
+            wraplength=GAME_WIDTH_PX,
             font="Helvetica 15 bold",
         )
         self.label_year = tk.Label(
             master=self,
             text=str(game_info.year) + " - #" + game_info.game_id,
             background="white",
-            wraplength=self.GAME_WIDTH_PX,
+            wraplength=GAME_WIDTH_PX,
         )
         self.label_img = tk.Label(
             master=self,
-            image=game_info.generate_cover_image(self.GAME_WIDTH_PX, self.GAME_HEIGHT_PX),
+            image=game_info.generate_cover_image(GAME_WIDTH_PX, GAME_HEIGHT_PX),
         )
         self.label_pad = tk.Label(master=self, background="white", font="Helvetica 5")
         self.label_title.pack()
