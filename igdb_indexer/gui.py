@@ -18,11 +18,7 @@ from igdb_indexer.json_interface import (
 class GamesTab(tk.Frame):
     """The tab with the games, a scroll bar, and a search bar"""
 
-    cols: int = 5
-
-    def __init__(self, json_name: str, tab_control: ttk.Notebook, game_width_px: int):
-        self.game_width_px: int = game_width_px
-
+    def __init__(self, json_name: str, tab_control: ttk.Notebook):
         games_list: List[GameDetails] = load_json_as_games_list(json_name)
 
         self.tab_name = f"{json_name[:-5]}"  # remove ".json" suffix
@@ -34,7 +30,7 @@ class GamesTab(tk.Frame):
         self.tab_control.add(self, text=tab_name_with_size)
         self.update()
 
-        self.games_list_page = GamesListPage(self, json_name, games_list, self.cols, self.game_width_px)
+        self.games_list_page = GamesListPage(self, json_name, games_list)
         bottom_search_bar = GameSearchBar(self, self.games_list_page)
 
         bottom_search_bar.pack(side="bottom", fill="x")
@@ -49,25 +45,19 @@ class GamesTab(tk.Frame):
 class GamesListPage(tk.Frame):
     """A TK Frame that will group and show the actual game frames in a grid-like fashion"""
 
-    def __init__(self, root: GamesTab, json_name: str, games_list: List[GameDetails], cols: int, game_width_px: int):
+    def __init__(self, root: GamesTab, json_name: str, games_list: List[GameDetails]):
         tk.Frame.__init__(self, root)
         self.root: GamesTab = root
-        self.cols: int = cols
+        self.cols: int = 0
         self.game_widgets: List[GameFrame] = []
         self.json_name: str = json_name
-        self.game_width_px: int = game_width_px
 
         # canvas with a scrollbar and a frame inside it
-        self.canvas = tk.Canvas(
-            self,
-            width=root.winfo_screenwidth(),
-            height=root.winfo_screenheight(),
-            background="white",
-        )
+        self.canvas = tk.Canvas(self, background="white")
         self.vsb = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=self.vsb.set)
         self.vsb.pack(side="right", fill="y")
-        self.canvas.pack(side="left")
+        self.canvas.pack(side="left", expand=1, fill="both")
 
         # frame inside canvas has the actual game frames
         self.frame = tk.Frame(self.canvas, background="white")
@@ -77,21 +67,34 @@ class GamesListPage(tk.Frame):
         self.frame.bind("<Leave>", self._unbound_to_mousewheel)
 
         # keep game frames in memory
+        self.compute_target_amount_of_columns()
         self.make_game_frames(games_list)
+
+    def compute_target_amount_of_columns(self):
+        self.frame.update()
+        self.cols = 5  # max(1, round(self.canvas.winfo_reqwidth() / 360))
+        print(f"wdith {self.frame.winfo_reqwidth()} {self.frame.winfo_width()}")
 
     def make_game_frames(self, games_list: List[GameDetails]) -> None:
         """makes a game frame for each game in games_list, places it in proper grid position"""
         self.game_widgets = []
-        for index in range(len(games_list)):
+        for game in games_list:
+            game_frame = GameFrame(self, game)
+            self.game_widgets.append(game_frame)
+        self.regrid_game_frames()
+
+    def regrid_game_frames(self) -> None:
+        for index, game_frame in enumerate(self.game_widgets):
             row = int(index / self.cols)
             col = index % self.cols
-            game_frame = GameFrame(self, games_list[index], self.game_width_px)
             game_frame.grid(row=row, column=col, sticky="s")
-            self.game_widgets.append(game_frame)
 
     def _on_frame_configure(self, _event) -> None:
         """Reset the scroll region to encompass the inner frame"""
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        print("_on_frame_configure")
+        self.compute_target_amount_of_columns()
+        self.regrid_game_frames()
 
     def _bound_to_mousewheel(self, _event) -> None:
         """when frame is focused, bind mousewheel"""
@@ -197,26 +200,30 @@ class GamesListPage(tk.Frame):
 class GameFrame(tk.Frame):
     """a single game frame, with title, date, id, and cover image"""
 
-    def __init__(self, tab: GamesListPage, game_info: GameDetails, game_width_px: int):
+    def __init__(self, tab: GamesListPage, game_info: GameDetails):
         tk.Frame.__init__(self, master=tab.frame, borderwidth=1, background="white")
+        self.GAME_WIDTH_PX = 360
+        self.GAME_HEIGHT_PX = round(self.GAME_WIDTH_PX * 1.9)
+
         self.tab = tab
         self.game_info: GameDetails = game_info
+
         self.label_title = tk.Label(
             master=self,
             text=game_info.name,
             background="white",
-            wraplength=game_width_px,
+            wraplength=self.GAME_WIDTH_PX,
             font="Helvetica 15 bold",
         )
         self.label_year = tk.Label(
             master=self,
             text=str(game_info.year) + " - #" + game_info.game_id,
             background="white",
-            wraplength=game_width_px,
+            wraplength=self.GAME_WIDTH_PX,
         )
         self.label_img = tk.Label(
             master=self,
-            image=game_info.generate_cover_image(game_width_px, int(game_width_px * 1.9)),
+            image=game_info.generate_cover_image(self.GAME_WIDTH_PX, self.GAME_HEIGHT_PX),
         )
         self.label_pad = tk.Label(master=self, background="white", font="Helvetica 5")
         self.label_title.pack()
@@ -266,8 +273,6 @@ class GameSearchBar(tk.Frame):
 class MainWindow(tk.Tk):
     """Creates the main GUI"""
 
-    cols: int = 5
-
     def __init__(self, list_of_jsons: List[str]):
         super().__init__()
         width, height = self.winfo_screenwidth(), self.winfo_screenheight()
@@ -278,8 +283,6 @@ class MainWindow(tk.Tk):
 
         self.tab_control = ttk.Notebook(self)
         self.tab_control.pack(expand=1, fill="both")
-
-        self.games_width_px: int = round((self.winfo_width() - 40) / self.cols)
 
         print("Loading tabs:")
         self.tabs: List[GamesTab] = []
@@ -308,7 +311,7 @@ class MainWindow(tk.Tk):
         return tab_name
 
     def make_tab(self, file: str) -> None:
-        self.tabs.append(GamesTab(file, self.tab_control, self.games_width_px))
+        self.tabs.append(GamesTab(file, self.tab_control))
 
     def remove_tab(self) -> None:
         tab_name = self.get_current_tab_name()
