@@ -99,6 +99,7 @@ class GamesListPage(tk.Frame):
             row = int(index / self.cols)
             col = index % self.cols
             game_frame.grid(row=row, column=col, sticky="s", padx=pad_x)
+        self.canvas.yview_moveto(0)  # reset view to top
 
     def _bound_to_mousewheel(self, _event) -> None:
         """when frame is focused, bind mousewheel"""
