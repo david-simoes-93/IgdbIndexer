@@ -1,4 +1,4 @@
-# IgdbIndexer
+# IGDB Indexer
 
 <img width="1849" height="1173" alt="image" src="https://github.com/user-attachments/assets/c052ed14-870b-49e5-a2a2-a61debf2203d" />
 
