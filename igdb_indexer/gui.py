@@ -174,6 +174,8 @@ class GamesListPage(tk.Frame):
         json_name: str = self.json_name
         self.make_game_frames(load_json_as_games_list(json_name))
         self.root.update_games_count()
+        # readjust window
+        self._on_canvas_configure(None)
 
     def add_new_game(self, game_id: int) -> None:
         # load JSON file
